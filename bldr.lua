@@ -1,6 +1,12 @@
 if Project "imp" then
     Compile "src/**"
     Include "src"
+    Import {
+        "glm",
+        "ankerl-maps",
+
+        "fastgltf",
+    }
 end
 
 if Project "imp-cli" then

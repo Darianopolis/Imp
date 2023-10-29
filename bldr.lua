@@ -4,6 +4,7 @@ if Project "imp" then
     Import {
         "glm",
         "ankerl-maps",
+        "fmt",
 
         "fastgltf",
     }

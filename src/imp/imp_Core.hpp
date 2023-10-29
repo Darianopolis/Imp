@@ -1,25 +1,90 @@
 #pragma once
 
-#include <iostream>
+#include <fmt/printf.h>
+
+#include <ankerl/unordered_dense.h>
+#include <vendor/ankerl_hashes.hpp>
+
+#include <chrono>
 
 namespace imp
 {
-    inline
-    void Error(std::string_view msg)
+    namespace chr = std::chrono;
+
+    template <typename... T>
+    void Error(fmt::format_string<T...> fmt_str, T&&... args)
     {
-        std::cout << "Error: " <<  msg << '\n';
+        fmt::println("Error: {}", fmt::format(fmt_str, std::forward<T>(args)...));
         std::terminate();
     }
 
-    template<class T>
-    T* Alloc(size_t count)
+    struct MemoryPool
     {
-        return static_cast<T*>(malloc(count * sizeof(T)));
-    }
+        std::vector<void*>                  allocations;
+        ankerl::unordered_dense::set<void*> freed;
 
-    inline
-    void Free(void* ptr)
+    public:
+        ~MemoryPool()
+        {
+            Clear();
+        }
+
+        void Clear()
+        {
+            for (auto* ptr : allocations) {
+                if (!freed.contains(ptr)) {
+                    free(ptr);
+                }
+            }
+            allocations.clear();
+            freed.clear();
+        }
+
+        template<class T>
+        T* Allocate(size_t count)
+        {
+            auto* ptr = static_cast<T*>(malloc(count * sizeof(T)));
+            if (ptr) {
+                allocations.push_back(ptr);
+            }
+            return ptr;
+        }
+
+        void Free(void* ptr)
+        {
+            if (ptr) {
+                free(ptr);
+                freed.insert(ptr);
+            }
+        }
+    };
+
+    template<class T>
+    struct Range
     {
-        free(ptr);
-    }
+        T*     begin = nullptr;
+        size_t count = 0;
+        size_t stride = sizeof(T);
+
+        T& operator[](ptrdiff_t index) const noexcept
+        {
+            return *reinterpret_cast<T*>(reinterpret_cast<std::byte*>(begin) + index * stride);
+        }
+
+        Range Slice(size_t first, size_t _count = UINT64_MAX) const noexcept
+        {
+            return { &(*this)[first], _count == UINT64_MAX ? (count - first) : _count, stride };
+        }
+
+        void CopyTo(Range<T> target) const noexcept
+        {
+            if (stride == sizeof(T) && target.stride == sizeof(T)) {
+                std::memcpy(target.begin, begin, count * sizeof(T));
+            } else {
+                for (size_t i = 0; i < count; ++i) {
+                    target[i] = (*this)[i];
+                }
+            }
+        }
+    };
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "imp_Core.hpp"
+#include "imp_Scene.hpp"
 
 #include <filesystem>
 #include <span>
@@ -26,20 +27,12 @@ namespace imp
         std::monostate RegisterModelLoader(ModelLoaderFn fn);
     };
 
-    template<class T>
-    struct InRange
-    {
-        const void* begin = nullptr;
-        size_t      count = 0;
-        size_t      stride = sizeof(T);
-    };
-
     struct InGeometry
     {
-        InRange<glm::vec3> positions;
-        InRange<glm::vec3> normals;
-        InRange<glm::vec2> tex_coords;
-        InRange<uint32_t>  indices;
+        Range<glm::vec3> positions;
+        Range<glm::vec3> normals;
+        Range<glm::vec2> tex_coords;
+        Range<uint32_t>  indices;
     };
 
     struct InMesh
@@ -57,9 +50,15 @@ namespace imp
         std::vector<InGeometry> geometries;
         std::vector<InMesh>     meshes;
 
+        MemoryPool memory_pool;
+
     public:
         void SetBaseDir(const std::filesystem::path& path);
         void LoadFile(const std::filesystem::path& path);
+
         void ReportStatistics();
+        void ReportDetailed();
+
+        Scene GenerateScene();
     };
 }

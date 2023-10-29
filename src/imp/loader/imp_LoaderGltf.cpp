@@ -4,9 +4,6 @@
 #include <fastgltf/util.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 
-#include <ankerl/unordered_dense.h>
-#include <vendor/ankerl_hashes.hpp>
-
 namespace imp::loaders
 {
     struct ModelLoaderGltf : ModelLoader
@@ -14,29 +11,21 @@ namespace imp::loaders
         fastgltf::Asset asset;
         Importer*       importer;
 
-        std::vector<void*> allocations;
+        MemoryPool memory_pool;
 
     public:
-        ~ModelLoaderGltf()
-        {
-            for (auto* ptr : allocations) {
-                Free(ptr);
-            }
-        }
-
         template<class T>
-        InRange<T> MakeRangeForAccessor(const fastgltf::Accessor& accessor)
+        Range<T> MakeRangeForAccessor(const fastgltf::Accessor& accessor)
         {
-            auto* arr = Alloc<T>(accessor.count);
-            allocations.emplace_back(arr);
+            auto* arr = memory_pool.Allocate<T>(accessor.count);
             fastgltf::copyFromAccessor<T>(asset, accessor, arr);
-            return InRange<T> { arr, accessor.count };
+            return Range<T> { arr, accessor.count };
         }
 
     public:
         ankerl::unordered_dense::map<std::pair<uint32_t, uint32_t>, uint32_t> geometries;
 
-        void ProcessGeometry()
+        void LoadGeometry()
         {
             for (auto& mesh : asset.meshes) {
                 for (auto& prim : mesh.primitives) {
@@ -76,7 +65,7 @@ namespace imp::loaders
             }
         }
 
-        void ProcessNode(fastgltf::Node& node, const glm::mat4& parent_transform)
+        void LoadNode(fastgltf::Node& node, const glm::mat4& parent_transform)
         {
             glm::mat4 transform(1.f);
             if (auto* trs = std::get_if<fastgltf::Node::TRS>(&node.transform)) {
@@ -106,7 +95,7 @@ namespace imp::loaders
             }
 
             for (auto child_idx : node.children) {
-                ProcessNode(asset.nodes[child_idx], transform);
+                LoadNode(asset.nodes[child_idx], transform);
             }
         }
 
@@ -168,10 +157,10 @@ namespace imp::loaders
 
             asset = std::move(res.get());
 
-            ProcessGeometry();
+            LoadGeometry();
 
             for (auto& node_idx : asset.scenes[asset.defaultScene.value()].nodeIndices) {
-                ProcessNode(asset.nodes[node_idx], glm::mat4(1.f));
+                LoadNode(asset.nodes[node_idx], glm::mat4(1.f));
             }
 
             return true;

@@ -1,5 +1,7 @@
 #include "imp.hpp"
 
+#include <fmt/printf.h>
+
 int main(int argc, char* argv[])
 {
     std::filesystem::path path;
@@ -10,7 +12,7 @@ int main(int argc, char* argv[])
     }
 
     if (!std::filesystem::exists(path)) {
-        std::cout << "Did not pass a valid path in\n";
+        fmt::println("Did not pass a valid path: {}", path.string());
         return 1;
     }
 
@@ -18,4 +20,9 @@ int main(int argc, char* argv[])
     importer.SetBaseDir(path.parent_path());
     importer.LoadFile(path);
     importer.ReportStatistics();
+
+    auto scene = importer.GenerateScene();
+
+    fmt::println("Scene[geometries = {}, geometry ranges = {}, meshes = {}]",
+        scene.geometries.count, scene.geometry_ranges.count, scene.meshes.count);
 }

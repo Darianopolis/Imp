@@ -40,9 +40,10 @@ namespace imp::detail
 
         scene.geometries = { memory_pool.Allocate<Geometry>(1), 1 };
         scene.geometries[0] = Geometry {
-            .indices        = { memory_pool.Allocate<uint32_t>(index_count),    index_count  },
-            .positions      = { memory_pool.Allocate<glm::vec3>(vertex_count), vertex_count },
-            .tangent_spaces = { memory_pool.Allocate<Basis>(vertex_count),     vertex_count },
+            .indices        = { memory_pool.Allocate<uint32_t>(index_count),       index_count  },
+            .positions      = { memory_pool.Allocate<glm::vec3>(vertex_count),     vertex_count },
+            .tangent_spaces = { memory_pool.Allocate<Basis>(vertex_count),         vertex_count },
+            .tex_coords     = { memory_pool.Allocate<Vec2<Float16>>(vertex_count), vertex_count },
         };
 
         // Temporary vertex basis scratch space
@@ -61,6 +62,8 @@ namespace imp::detail
 
             bool has_normals = geometry.normals.count;
             bool has_texcoords = geometry.tex_coords.count;
+
+            std::fill(vertex_basis.begin(), vertex_basis.begin() + range.max_vertex + 1, VertexBasis());
 
             if (has_normals) {
                 geometry.normals.CopyTo({ &vertex_basis[0].normal, max_vertex_count_per_range, sizeof(VertexBasis) });
@@ -141,7 +144,8 @@ namespace imp::detail
                 // Normalize and reorthogonalize generated tangent spaces
 
                 basis_in.normal = glm::normalize(basis_in.normal);
-                basis_in.tangent = detail::Reorthogonalize(glm::normalize(basis_in.tangent), basis_in.normal);
+                basis_in.tangent = glm::normalize(basis_in.tangent);
+                basis_in.tangent = detail::Reorthogonalize(basis_in.tangent, basis_in.normal);
                 basis_in.bitangent = glm::normalize(basis_in.bitangent);
 
                 auto enc_normal = detail::SignedOctEncode(basis_in.normal);
@@ -165,6 +169,8 @@ namespace imp::detail
                 basis_out.btg_s = uint32_t(enc_bitangent);
 
                 scene.geometries[0].tangent_spaces[range.vertex_offset + j] = basis_out;
+                scene.geometries[0].tex_coords[range.vertex_offset + j] =
+                    std::bit_cast<Vec2<Float16>>(glm::packHalf2x16(geometry.tex_coords[j]));
             }
         }
     }

@@ -15,11 +15,21 @@ namespace imp
         uint32_t btg_s :  1;
     };
 
+    using UNorm16 = uint16_t;
+    using SNorm16 = uint16_t;
+    using Float16 = uint16_t;
+    using Float32 = float;
+    template<class T>
+    using Vec2 = std::array<T, 2>;
+    template<class T>
+    using Vec3 = std::array<T, 3>;
+
     struct Geometry
     {
-        Range<uint32_t>  indices;
-        Range<glm::vec3> positions;
-        Range<Basis>     tangent_spaces;
+        Range<uint32_t>      indices;
+        Range<glm::vec3>     positions;
+        Range<Basis>         tangent_spaces;
+        Range<Vec2<Float16>> tex_coords;
     };
 
     struct GeometryRange

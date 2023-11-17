@@ -7,6 +7,7 @@ if Project "imp" then
         "fmt",
 
         "fastgltf",
+        "stb",
     }
 end
 

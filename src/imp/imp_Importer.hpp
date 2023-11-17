@@ -4,7 +4,7 @@
 #include "imp_Scene.hpp"
 
 #include <filesystem>
-#include <span>
+#include <variant>
 
 #include <vendor/glm_include.hpp>
 
@@ -41,6 +41,57 @@ namespace imp
         glm::mat4x3 transform;
     };
 
+    enum class InBufferFormat
+    {
+        RGBA8,
+    };
+
+    struct InImageFileURI
+    {
+        std::string uri;
+    };
+
+    struct InImageFileBuffer
+    {
+        std::vector<std::byte> data;
+    };
+
+    struct InImageBuffer
+    {
+        std::vector<std::byte> data;
+        glm::uvec2             size;
+        InBufferFormat         format;
+    };
+
+    using InImageDataSource = std::variant<InImageBuffer, InImageFileBuffer, InImageFileURI>;
+
+    struct InTexture
+    {
+        InImageDataSource data;
+    };
+
+    struct InMaterial
+    {
+        // struct Property
+        // {
+        //     std::string_view      name;
+        //     int32_t               texture_idx = -1;
+        //     std::array<float, 4>  values = {};
+        // };
+
+        // std::vector<Property> properties;
+
+        struct TextureProcess
+        {
+            int32_t       source = -1;
+            TextureFormat format;
+
+            std::function<glm::vec4(glm::vec4)> fn;
+        };
+
+        TextureProcess basecolor_alpha;
+    };
+
     struct Importer
     {
         std::filesystem::path base_dir;
@@ -49,6 +100,9 @@ namespace imp
 
         std::vector<InGeometry> geometries;
         std::vector<InMesh>     meshes;
+
+        std::vector<InTexture>  textures;
+        std::vector<InMaterial> materials;
 
         MemoryPool memory_pool;
 

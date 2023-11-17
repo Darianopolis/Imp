@@ -65,6 +65,101 @@ namespace imp::loaders
             }
         }
 
+    public:
+        ankerl::unordered_dense::map<size_t, int32_t> textures;
+
+        void LoadMaterials()
+        {
+            for (auto& texture_in : asset.textures) {
+                auto add_image = [&](auto&& source) {
+                    textures.insert({ int32_t(&texture_in - asset.textures.data()), int32_t(importer->textures.size()) });
+                    importer->textures.emplace_back(std::move(source));
+                };
+
+                if (texture_in.imageIndex) {
+                    std::visit(OverloadSet {
+                        [&](const fastgltf::sources::URI& uri) {
+                            add_image(InImageFileURI(fmt::format("{}/{}", importer->base_dir.string(), uri.uri.path())));
+                        },
+                        [&](const fastgltf::sources::Vector& vec) {
+                            InImageFileBuffer source;
+                            source.data.resize(vec.bytes.size());
+                            std::memcpy(source.data.data(), vec.bytes.data(), vec.bytes.size());
+                            add_image(std::move(source));
+                        },
+                        [&](const fastgltf::sources::ByteView& byteView) {
+                            InImageFileBuffer source;
+                            source.data.resize(byteView.bytes.size());
+                            std::memcpy(source.data.data(), byteView.bytes.data(), byteView.bytes.size());
+                            add_image(std::move(source));
+                        },
+                        [&](const fastgltf::sources::BufferView& bufferViewIdx) {
+                            auto& view = asset.bufferViews[bufferViewIdx.bufferViewIndex];
+                            auto& buffer = asset.buffers[view.bufferIndex];
+                            auto* bytes = fastgltf::DefaultBufferDataAdapter{}(buffer) + view.byteOffset;
+                            InImageFileBuffer source;
+                            source.data.resize(view.byteLength);
+                            std::memcpy(source.data.data(), bytes, view.byteLength);
+                            add_image(std::move(source));
+                        },
+                        [&](auto&&) {},
+                    }, asset.images[texture_in.imageIndex.value()].data);
+                }
+            }
+
+            for (auto& material_in : asset.materials) {
+                auto& material = importer->materials.emplace_back();
+
+                auto find_texture = [&](auto& info) -> int32_t {
+                    if (!info) return -1;
+                    auto f = textures.find(info->textureIndex);
+                    if (f == textures.end()) return -1;
+                    return f->second;
+                };
+
+                auto set_values = [](auto& values) -> std::array<float, 4> {
+                    std::array<float, 4> out{};
+                    for (uint32_t i = 0; i < values.size(); ++i) {
+                        out[i] = values[i];
+                    }
+                    return out;
+                };
+
+                // auto& albedo_alpha = material.properties.emplace_back();
+                // albedo_alpha.name = "base_color";
+                // albedo_alpha.texture_idx = find_texture(material_in.pbrData.baseColorTexture);
+                // albedo_alpha.values = material_in.pbrData.baseColorFactor;
+
+                // auto& normal = material.properties.emplace_back();
+                // normal.name = "normal";
+                // normal.texture_idx = find_texture(material_in.normalTexture);
+
+                // auto& metalness_roughness = material.properties.emplace_back();
+                // metalness_roughness.name = "metalness_roughness";
+                // metalness_roughness.texture_idx = find_texture(material_in.pbrData.metallicRoughnessTexture);
+
+                // auto& metalness = material.properties.emplace_back();
+                // metalness.name = "metalness";
+                // metalness.values[0] = material_in.pbrData.metallicFactor;
+
+                // auto& roughness = material.properties.emplace_back();
+                // roughness.name = "roughness";
+                // roughness.values[0] = material_in.pbrData.roughnessFactor;
+
+                // auto& emission = material.properties.emplace_back();
+                // emission.name = "emission";
+                // emission.texture_idx = find_texture(material_in.emissiveTexture);
+                // emission.values = set_values(material_in.emissiveFactor);
+                // emission.values[3] = material_in.emissiveStrength.value_or(1.f);
+
+                material.basecolor_alpha = InMaterial::TextureProcess {
+                    { find_texture(material_in.pbrData.baseColorTexture) }, TextureFormat::RGBA8_SRGB,
+                    [&](glm::vec4 v) -> glm::vec4 { return v; },
+                };
+            }
+        }
+
+    public:
         void LoadNode(fastgltf::Node& node, const glm::mat4& parent_transform)
         {
             glm::mat4 transform(1.f);
@@ -157,6 +252,7 @@ namespace imp::loaders
 
             asset = std::move(res.get());
 
+            LoadMaterials();
             LoadGeometry();
 
             for (auto& node_idx : asset.scenes[asset.defaultScene.value()].nodeIndices) {

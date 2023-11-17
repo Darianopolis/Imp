@@ -56,6 +56,9 @@ namespace imp::detail
         };
         std::vector<VertexBasis> vertex_basis(max_vertex_count_per_range);
 
+        using namespace std::chrono;
+        steady_clock::duration elapsed = {};
+
         for (uint32_t i = 0; i < geometries.size(); ++i) {
             auto& geometry = geometries[i];
             auto& range = scene.geometry_ranges[i];
@@ -136,6 +139,7 @@ namespace imp::detail
 
             // Quantize generated tangent spaces
 
+            auto start = steady_clock::now();
 #pragma omp parallel for
             for (uint32_t j = 0; j < geometry.positions.count; ++j) {
                 auto& basis_in = vertex_basis[j];
@@ -172,6 +176,10 @@ namespace imp::detail
                 scene.geometries[0].tex_coords[range.vertex_offset + j] =
                     std::bit_cast<Vec2<Float16>>(glm::packHalf2x16(geometry.tex_coords[j]));
             }
+            auto end = steady_clock::now();
+            elapsed += (end - start);
         }
+
+        fmt::println("Processed all geometry in {} ms", duration_cast<milliseconds>(elapsed).count());
     }
 }

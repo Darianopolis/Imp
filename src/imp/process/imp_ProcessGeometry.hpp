@@ -69,7 +69,9 @@ namespace imp::detail
             std::fill(vertex_basis.begin(), vertex_basis.begin() + range.max_vertex + 1, VertexBasis());
 
             if (has_normals) {
-                geometry.normals.CopyTo({ &vertex_basis[0].normal, max_vertex_count_per_range, sizeof(VertexBasis) });
+                for (uint32_t i = 0; i < geometry.normals.count; ++i) {
+                    vertex_basis[i].normal = geometry.normals[i];
+                }
             }
 
             geometry.indices.CopyTo(scene.geometries[0].indices.Slice(range.first_index));

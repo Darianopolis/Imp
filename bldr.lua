@@ -7,7 +7,8 @@ if Project "imp" then
         "fmt",
 
         "fastgltf",
-        "stb",
+        "stb_image",
+        "bc7enc",
     }
 end
 

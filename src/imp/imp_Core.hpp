@@ -104,27 +104,20 @@ namespace imp
     {
         T*     begin = nullptr;
         size_t count = 0;
-        size_t stride = sizeof(T);
 
         T& operator[](ptrdiff_t index) const noexcept
         {
-            return *reinterpret_cast<T*>(reinterpret_cast<std::byte*>(begin) + index * stride);
+            return reinterpret_cast<T*>(reinterpret_cast<std::byte*>(begin))[index];
         }
 
         Range Slice(size_t first, size_t _count = UINT64_MAX) const noexcept
         {
-            return { &(*this)[first], _count == UINT64_MAX ? (count - first) : _count, stride };
+            return { &(*this)[first], _count == UINT64_MAX ? (count - first) : _count };
         }
 
         void CopyTo(Range<T> target) const noexcept
         {
-            if (stride == sizeof(T) && target.stride == sizeof(T)) {
-                std::memcpy(target.begin, begin, count * sizeof(T));
-            } else {
-                for (size_t i = 0; i < count; ++i) {
-                    target[i] = (*this)[i];
-                }
-            }
+            std::memcpy(target.begin, begin, count * sizeof(T));
         }
     };
 }

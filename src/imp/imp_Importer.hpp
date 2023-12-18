@@ -41,11 +41,6 @@ namespace imp
         glm::mat4x3 transform;
     };
 
-    enum class InBufferFormat
-    {
-        RGBA8,
-    };
-
     struct InImageFileURI
     {
         std::string uri;
@@ -58,9 +53,9 @@ namespace imp
 
     struct InImageBuffer
     {
-        std::vector<std::byte> data;
-        glm::uvec2             size;
-        InBufferFormat         format;
+        Range<std::byte> data;
+        glm::uvec2       size;
+        TextureFormat    format;
     };
 
     using InImageDataSource = std::variant<InImageBuffer, InImageFileBuffer, InImageFileURI>;
